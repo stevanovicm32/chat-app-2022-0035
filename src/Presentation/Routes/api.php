@@ -8,10 +8,21 @@ use App\Presentation\Controllers\ChatController;
 use App\Presentation\Controllers\PorukaController;
 use App\Presentation\Controllers\DatotekaController;
 use App\Presentation\Controllers\PripadaController;
+use App\Presentation\Controllers\AuthController;
 
-// API Routes
-Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-    return $request->user();
+// Auth routes (public)
+Route::post('/register', [AuthController::class, 'register']);
+Route::post('/login', [AuthController::class, 'login']);
+
+// Protected routes
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/user', function (Request $request) {
+        return response()->json([
+            'success' => true,
+            'data' => $request->user()
+        ], 200);
+    });
+    Route::post('/logout', [AuthController::class, 'logout']);
 });
 
 // Uloga routes
