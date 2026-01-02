@@ -7,14 +7,16 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Foundation\Auth\User as Authenticatable;
 use Laravel\Sanctum\HasApiTokens;
 
-class Korisnik extends Model
+class Korisnik extends Authenticatable
 {
     use HasFactory, HasApiTokens;
 
     protected $table = 'korisnik';
     protected $primaryKey = 'idKorisnik';
+    public $incrementing = true;
 
     protected $fillable = [
         'email',
