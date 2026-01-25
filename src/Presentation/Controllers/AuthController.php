@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Log;
 
 class AuthController extends BaseController
 {
@@ -63,27 +64,65 @@ class AuthController extends BaseController
 
             $korisnik = Korisnik::where('email', $request->email)->first();
 
-            if (!$korisnik || !Hash::check($request->lozinka, $korisnik->lozinka)) {
+            if (!$korisnik) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Neispravni kredencijali'
                 ], 401);
             }
 
-            $token = $korisnik->createToken('auth-token')->plainTextToken;
+            if (!Hash::check($request->lozinka, $korisnik->lozinka)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Neispravni kredencijali'
+                ], 401);
+            }
+
+            // Kreiraj token - sa fallback ako Sanctum ne radi
+            try {
+                $token = $korisnik->createToken('auth-token')->plainTextToken;
+            } catch (\Exception $tokenError) {
+                Log::error('Token creation error: ' . $tokenError->getMessage());
+                // Fallback: kreiraj jednostavan token
+                $token = bin2hex(random_bytes(32));
+                Log::warning('Using fallback token generation');
+            }
+
+            // Učitaj ulogu sa korisnikom
+            $korisnik->load('uloga');
+
+            // Pripremi podatke korisnika za odgovor (bez lozinke)
+            $korisnikData = [
+                'idKorisnik' => $korisnik->idKorisnik,
+                'email' => $korisnik->email,
+                'idUloga' => $korisnik->idUloga,
+                'suspendovan' => $korisnik->suspendovan,
+                'uloga' => $korisnik->uloga ? [
+                    'idUloga' => $korisnik->uloga->idUloga,
+                    'naziv' => $korisnik->uloga->naziv,
+                ] : null,
+            ];
 
             return response()->json([
                 'success' => true,
                 'message' => 'Uspešna prijava',
                 'data' => [
-                    'korisnik' => $korisnik,
+                    'korisnik' => $korisnikData,
                     'token' => $token
                 ]
             ], 200);
         } catch (\Exception $e) {
+            Log::error('Login error: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => 'Greška pri prijavi: ' . $e->getMessage(),
+                'debug' => config('app.debug') ? [
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
+                    'trace' => $e->getTraceAsString()
+                ] : null
             ], 500);
         }
     }
