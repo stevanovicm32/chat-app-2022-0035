@@ -23,6 +23,11 @@ const Chatovi = () => {
   const [messageError, setMessageError] = useState('')
   const [messageSending, setMessageSending] = useState(false)
   const [messageDeletingId, setMessageDeletingId] = useState(null)
+  const [gifModalOpen, setGifModalOpen] = useState(false)
+  const [gifSearch, setGifSearch] = useState('')
+  const [gifResults, setGifResults] = useState([])
+  const [gifLoading, setGifLoading] = useState(false)
+  const [gifError, setGifError] = useState('')
   const [allUsers, setAllUsers] = useState([])
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [selectedUserIds, setSelectedUserIds] = useState([])
@@ -315,6 +320,73 @@ const Chatovi = () => {
   const closeCreateModal = () => {
     setIsCreateModalOpen(false)
     setCreateError('')
+  }
+
+  const openGifModal = () => {
+    if (!import.meta.env.VITE_GIPHY_API_KEY) {
+      setGifError('Nedostaje GIPHY API ključ; pogledaj dokumentaciju')
+      return
+    }
+
+    setGifError('')
+    setGifModalOpen(true)
+    searchGifs('trending')
+  }
+
+  const closeGifModal = () => {
+    setGifModalOpen(false)
+    setGifResults([])
+    setGifSearch('')
+    setGifError('')
+    setGifLoading(false)
+  }
+
+  const searchGifs = async (term = '') => {
+    if (!import.meta.env.VITE_GIPHY_API_KEY) {
+      setGifError('Nedostaje GIPHY API ključ')
+      return
+    }
+
+    setGifLoading(true)
+    setGifError('')
+    try {
+      const response = await fetch(
+        `https://api.giphy.com/v1/gifs/search?api_key=${import.meta.env.VITE_GIPHY_API_KEY}&q=${encodeURIComponent(
+          term || 'funny'
+        )}&limit=18&rating=pg`
+      )
+      const data = await response.json()
+      setGifResults(data.data || [])
+    } catch (err) {
+      console.error('GIF search error:', err)
+      setGifError('Nije uspelo pretraživanje GIFova')
+    } finally {
+      setGifLoading(false)
+    }
+  }
+
+  const sendGifMessage = async (url) => {
+    if (!selectedChat?.idChat) return
+    setMessageSending(true)
+    setGifLoading(true)
+    try {
+      const response = await axios.post(`/api/chat/${selectedChat.idChat}/poruka`, {
+        tekst: url
+      })
+      if (response.data.success) {
+        setMessageText('')
+        fetchMessages(selectedChat.idChat)
+        closeGifModal()
+      } else {
+        setGifError('Neuspešno slanje GIF poruke')
+      }
+    } catch (err) {
+      console.error('GIF send error:', err)
+      setGifError(err.response?.data?.message || 'Došlo je do greške')
+    } finally {
+      setGifLoading(false)
+      setMessageSending(false)
+    }
   }
 
   const handleConfirmCreateChat = async () => {
@@ -681,54 +753,74 @@ const Chatovi = () => {
               <p className="message-loading">Učitavanje poruka...</p>
             ) : displayedMessages.length ? (
               <div className="message-list">
-                {displayedMessages.map((msg) => (
-                  <div key={msg.idPoruka ?? msg.id} className="message-item">
-                    <div className="message-meta">
-                      <span className="message-author">
-                        {msg.korisnik?.email || 'Nepoznat'}
-                      </span>
-                      <span className="message-time">
-                        {msg.created_at
-                          ? new Date(msg.created_at).toLocaleString()
-                          : '-'}
-                      </span>
+                {displayedMessages.map((msg) => {
+                  const isGif = String(msg.tekst || '').startsWith('https://') &&
+                    (msg.tekst.includes('.gif') || msg.tekst.includes('giphy.com'));
+                  return (
+                    <div key={msg.idPoruka ?? msg.id} className="message-item">
+                      <div className="message-meta">
+                        <span className="message-author">
+                          {msg.korisnik?.email || 'Nepoznat'}
+                        </span>
+                        <span className="message-time">
+                          {msg.created_at
+                            ? new Date(msg.created_at).toLocaleString()
+                            : '-'}
+                        </span>
+                      </div>
+                      {isGif ? (
+                        <div className="message-gif">
+                          <img src={msg.tekst} alt="GIF poruka" />
+                        </div>
+                      ) : (
+                        <p className="message-text">{msg.tekst}</p>
+                      )}
+                      {canDeleteMessage(msg) && (
+                        <button
+                          className="message-delete"
+                          onClick={() => handleDeleteMessage(msg)}
+                          disabled={messageDeletingId === (msg.idPoruka ?? msg.id)}
+                        >
+                          {messageDeletingId === (msg.idPoruka ?? msg.id)
+                            ? 'Brisanje...'
+                            : 'Obriši poruku'}
+                        </button>
+                      )}
                     </div>
-                    <p className="message-text">{msg.tekst}</p>
-                    {canDeleteMessage(msg) && (
-                      <button
-                        className="message-delete"
-                        onClick={() => handleDeleteMessage(msg)}
-                        disabled={messageDeletingId === (msg.idPoruka ?? msg.id)}
-                      >
-                        {messageDeletingId === (msg.idPoruka ?? msg.id)
-                          ? 'Brisanje...'
-                          : 'Obriši poruku'}
-                      </button>
-                    )}
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             ) : (
               <p className="message-placeholder">Nema poruka u ovom chatu.</p>
             )}
             {messageError && <p className="message-error">{messageError}</p>}
-            <div className="message-form">
-              <textarea
-                value={messageText}
-                onChange={(e) => setMessageText(e.target.value)}
-                placeholder="Napiši poruku..."
-                rows={3}
-                disabled={isSuspended}
-              />
-              <Button
-                variant="primary"
-                size="small"
-                onClick={handleSendMessage}
-                disabled={messageSending || isSuspended}
-              >
-                {messageSending ? 'Šaljem...' : 'Pošalji'}
-              </Button>
-            </div>
+                <div className="message-form">
+                  <textarea
+                    value={messageText}
+                    onChange={(e) => setMessageText(e.target.value)}
+                    placeholder="Napiši poruku..."
+                    rows={3}
+                    disabled={isSuspended}
+                  />
+                  <div className="message-actions">
+                    <Button
+                      variant="secondary"
+                      size="small"
+                      onClick={openGifModal}
+                      disabled={!selectedChat?.idChat}
+                    >
+                      Pošalji GIF
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="small"
+                      onClick={handleSendMessage}
+                      disabled={messageSending || isSuspended}
+                    >
+                      {messageSending ? 'Šaljem...' : 'Pošalji'}
+                    </Button>
+                  </div>
+                </div>
           </div>
         </Modal>
         <Modal
@@ -838,6 +930,43 @@ const Chatovi = () => {
                 {passwordLoading ? 'Menjam...' : 'Promeni lozinku'}
               </Button>
             </div>
+          </div>
+        </Modal>
+        <Modal
+          isOpen={gifModalOpen}
+          onClose={closeGifModal}
+          title="Izaberi GIF"
+          footer={null}
+        >
+          <Input
+            label="Pretraga GIFova"
+            value={gifSearch}
+            onChange={(e) => setGifSearch(e.target.value)}
+            placeholder="Upiši temu"
+          />
+          <Button
+            variant="primary"
+            size="small"
+            onClick={() => searchGifs(gifSearch)}
+            disabled={gifLoading}
+          >
+            {gifLoading ? 'Tražim...' : 'Pretraži'}
+          </Button>
+          {gifError && <p className="profile-error">{gifError}</p>}
+          <div className="gif-grid">
+            {gifLoading ? (
+              <p className="message-loading">Učitavanje GIFova...</p>
+            ) : (
+              gifResults.map((gif) => (
+                <button
+                  key={gif.id}
+                  className="gif-card"
+                  onClick={() => sendGifMessage(gif.images.fixed_width.url)}
+                >
+                  <img src={gif.images.fixed_width.url} alt={gif.title || 'GIF'} loading="lazy" />
+                </button>
+              ))
+            )}
           </div>
         </Modal>
       </main>

@@ -102,6 +102,7 @@ class KorisnikController extends BaseController
                 'message' => $e->getMessage()
             ], $e->getCode() ?: 500);
         }
+    }
 
     public function changePassword(ChangePasswordRequest $request, int $id): JsonResponse
     {
@@ -126,8 +127,6 @@ class KorisnikController extends BaseController
             ], $e->getCode() ?: 500);
         }
     }
-    }
-
     public function destroy(int $id): JsonResponse
     {
         try {

@@ -7,6 +7,7 @@ use App\Presentation\Requests\UpdateUlogaRequest;
 use App\Business\Services\UlogaService;
 use App\Presentation\Controllers\BaseController;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Log;
 
 class UlogaController extends BaseController
 {
@@ -22,10 +23,17 @@ class UlogaController extends BaseController
                 'success' => true,
                 'data' => $uloge
             ], 200);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            Log::error('UlogaController::index error', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
+                'exception' => config('app.debug') ? get_class($e) : null,
             ], 500);
         }
     }

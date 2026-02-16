@@ -30,6 +30,11 @@ const Register = () => {
       })
       .catch(error => {
         console.error('Error fetching roles:', error)
+        const msg = error.response?.data?.message || error.response?.data?.exception || error.message
+        if (error.response?.data) {
+          console.error('Backend response:', error.response.data)
+        }
+        setError(msg || 'Nije moguće učitati uloge. Proverite da li backend radi na portu iz VITE_BACKEND_URL.')
       })
   }, [user, navigate])
 

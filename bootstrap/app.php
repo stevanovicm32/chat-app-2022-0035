@@ -10,6 +10,8 @@ $app = new Illuminate\Foundation\Application(
     dirname(__DIR__)
 );
 
+require_once __DIR__.'/config.php';
+
 $app->useConfigPath($app->basePath('src/Infrastructure/Config'));
 
 /*
