@@ -28,7 +28,58 @@ Web aplikacija za razmenu poruka u realnom vremenu. Backend je napisan u **Larav
 
 ---
 
-## Instalacija i pokretanje
+## Pokretanje pomoću Dockera (Docker + Docker Compose)
+
+Aplikacija je dockerizovana. Potrebno je imati instalirane **Docker** i **Docker Compose**.
+
+### Jednostavno pokretanje
+
+U root folderu projekta:
+
+```bash
+# Generiši APP_KEY (jednom) – opciono, entrypoint može i sam
+php artisan key:generate --show
+# Upisi izlaz u .env kao APP_KEY=base64...
+
+# Pokreni sve servise
+docker compose up --build
+```
+
+- **Frontend:** http://localhost:3000  
+- **Backend API:** http://localhost:8000  
+
+Aplikacija: otvori **http://localhost:3000** u browseru. Baza (SQLite) i storage su u Docker volumenima, pa podaci ostaju i posle gašenja kontejnera.
+
+### Šta Docker Compose pokreće
+
+| Servis   | Opis                          | Port |
+|----------|--------------------------------|------|
+| backend  | Laravel (PHP 8.2), SQLite, migracije pri startu | 8000 |
+| frontend | React + Vite dev server, proxy ka backendu      | 3000 |
+
+### Korisne naredbe
+
+```bash
+# Build i pokretanje u pozadini
+docker compose up -d --build
+
+# Zaustavljanje
+docker compose down
+
+# Logovi
+docker compose logs -f
+
+# Seed baze (nakon što kontejneri rade)
+docker compose exec backend php artisan db:seed --force
+```
+
+### Opciono: fajl `.env` u rootu
+
+Ako u rootu postoji `.env` sa bar `APP_KEY=...`, Docker Compose koristi te vrednosti (npr. `APP_KEY=${APP_KEY}` u compose). Ako nemaš `.env`, entrypoint u backend kontejneru kreira minimalni `.env` i može pokrenuti `php artisan key:generate` pri prvom startu.
+
+---
+
+## Instalacija i pokretanje (bez Dockera)
 
 ### 1. Kloniranje i backend
 
@@ -141,6 +192,9 @@ ITEH/
 ├── .env                      # Konfiguracija (ne commitovati)
 ├── artisan
 ├── composer.json
+├── Dockerfile                # Backend (Laravel) image
+├── docker-compose.yml        # Orkestracija backend + frontend
+├── docker-entrypoint.sh      # Entrypoint za backend (migracije, .env)
 └── README.md                 # Ovaj fajl
 ```
 
