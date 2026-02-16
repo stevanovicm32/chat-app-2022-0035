@@ -95,6 +95,7 @@ class AuthController extends BaseController
             $korisnikData = [
                 'idKorisnik' => $korisnik->idKorisnik,
                 'email' => $korisnik->email,
+                'avatar_seed' => $korisnik->avatar_seed,
                 'idUloga' => $korisnik->idUloga,
                 'suspendovan' => $korisnik->suspendovan,
                 'uloga' => $korisnik->uloga ? [

@@ -3,4 +3,5 @@
 /database.sqlite
 /storage/logs
 .env
+/frontend/.env
 /frontend/node_modules

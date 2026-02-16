@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import axios from 'axios'
+import { Avatar, getAvatarSeedForKorisnik } from '../components'
 import './AdminPanel.css'
 
 const AdminPanel = () => {
@@ -168,7 +169,10 @@ const AdminPanel = () => {
                     {korisnici.map((korisnik) => (
                     <tr key={korisnik.idKorisnik}>
                       <td>{korisnik.idKorisnik}</td>
-                      <td>{korisnik.email}</td>
+                      <td>
+                        <Avatar seed={getAvatarSeedForKorisnik(korisnik)} size={32} alt="" />
+                        <span className="admin-email-cell">{korisnik.email}</span>
+                      </td>
                       <td>
                         <div className="role-actions">
                           <select

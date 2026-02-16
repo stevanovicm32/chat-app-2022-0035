@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import axios from 'axios'
-import { Button, Card, Input, Modal } from '../components'
+import { Avatar, Button, Card, Input, Modal, getAvatarSeedForKorisnik, PRESET_AVATAR_SEEDS } from '../components'
 import './Chatovi.css'
 
 const Chatovi = () => {
@@ -36,7 +36,7 @@ const Chatovi = () => {
   const [deletingChat, setDeletingChat] = useState(false)
   const [chatActionError, setChatActionError] = useState('')
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
-  const [profileForm, setProfileForm] = useState({ email: '' })
+  const [profileForm, setProfileForm] = useState({ email: '', avatar_seed: '' })
   const [profileError, setProfileError] = useState('')
   const [profileSuccess, setProfileSuccess] = useState('')
   const [profileLoading, setProfileLoading] = useState(false)
@@ -117,7 +117,11 @@ const Chatovi = () => {
   }, [isModalOpen])
 
   useEffect(() => {
-    setProfileForm((prev) => ({ ...prev, email: user?.email || '' }))
+    setProfileForm((prev) => ({
+      ...prev,
+      email: user?.email || '',
+      avatar_seed: user?.avatar_seed ?? ''
+    }))
   }, [user])
 
   const fetchChatovi = async ({ showLoader = false } = {}) => {
@@ -196,6 +200,7 @@ const Chatovi = () => {
     setProfileSuccess('')
     setPasswordError('')
     setPasswordSuccess('')
+    setProfileForm({ email: user?.email || '', avatar_seed: user?.avatar_seed ?? '' })
     setPasswordForm({
       staraLozinka: '',
       novaLozinka: '',
@@ -209,8 +214,10 @@ const Chatovi = () => {
       return
     }
 
-    if (profileForm.email === user?.email) {
-      setProfileError('Email se nije promenio')
+    const emailChanged = profileForm.email !== user?.email
+    const avatarChanged = (profileForm.avatar_seed || '') !== (user?.avatar_seed ?? '')
+    if (!emailChanged && !avatarChanged) {
+      setProfileError('Nije bilo promena')
       return
     }
 
@@ -218,18 +225,18 @@ const Chatovi = () => {
     setProfileError('')
     setProfileSuccess('')
     try {
-      const response = await axios.patch(`/api/korisnik/${user?.idKorisnik}`, {
-        email: profileForm.email
-      })
+      const payload = { email: profileForm.email }
+      if (avatarChanged) payload.avatar_seed = profileForm.avatar_seed.trim() || null
+      const response = await axios.patch(`/api/korisnik/${user?.idKorisnik}`, payload)
       if (response.data.success) {
-        setProfileSuccess('Email uspešno ažuriran')
+        setProfileSuccess(emailChanged && avatarChanged ? 'Profil i ikonica ažurirani' : avatarChanged ? 'Ikona ažurirana' : 'Email uspešno ažuriran')
         refreshUser()
       } else {
-        setProfileError(response.data.message || 'Neuspešno ažuriranje emaila')
+        setProfileError(response.data.message || 'Neuspešno ažuriranje profila')
       }
     } catch (err) {
       console.error('Profile update error:', err)
-      setProfileError(err.response?.data?.message || 'Došlo je do greške pri ažuriranju emaila')
+      setProfileError(err.response?.data?.message || 'Došlo je do greške pri ažuriranju profila')
     } finally {
       setProfileLoading(false)
     }
@@ -323,14 +330,13 @@ const Chatovi = () => {
   }
 
   const openGifModal = () => {
-    if (!import.meta.env.VITE_GIPHY_API_KEY) {
-      setGifError('Nedostaje GIPHY API ključ; pogledaj dokumentaciju')
-      return
-    }
-
     setGifError('')
     setGifModalOpen(true)
-    searchGifs('trending')
+    if (import.meta.env.VITE_GIPHY_API_KEY) {
+      searchGifs('trending')
+    } else {
+      setGifError('Nedostaje GIPHY API ključ. Dodaj VITE_GIPHY_API_KEY u frontend/.env (besplatan ključ na developers.giphy.com).')
+    }
   }
 
   const closeGifModal = () => {
@@ -585,6 +591,7 @@ const Chatovi = () => {
       <header className="header">
         <h1>Moji Chatovi</h1>
         <div className="user-info">
+          <Avatar seed={getAvatarSeedForKorisnik(user)} size={36} className="header-avatar" alt="" />
           <button className="profile-trigger" onClick={openProfileModal}>
             Prijavljen kao: <strong>{user?.email}</strong>
           </button>
@@ -722,6 +729,7 @@ const Chatovi = () => {
               <div className="participant-list">
                 {participantsList.map((participant) => (
                   <span key={participant.idKorisnik ?? participant.id} className="participant-chip">
+                    <Avatar seed={getAvatarSeedForKorisnik(participant)} size={28} className="participant-avatar" alt="" />
                     {participant.email || participant.ime || 'Nepoznato'}
                     {participant.uloga?.naziv ? ` (${participant.uloga.naziv})` : ''}
                   </span>
@@ -758,34 +766,37 @@ const Chatovi = () => {
                     (msg.tekst.includes('.gif') || msg.tekst.includes('giphy.com'));
                   return (
                     <div key={msg.idPoruka ?? msg.id} className="message-item">
-                      <div className="message-meta">
-                        <span className="message-author">
-                          {msg.korisnik?.email || 'Nepoznat'}
-                        </span>
-                        <span className="message-time">
-                          {msg.created_at
-                            ? new Date(msg.created_at).toLocaleString()
-                            : '-'}
-                        </span>
-                      </div>
-                      {isGif ? (
-                        <div className="message-gif">
-                          <img src={msg.tekst} alt="GIF poruka" />
+                      <Avatar seed={getAvatarSeedForKorisnik(msg.korisnik)} size={40} className="message-avatar" alt="" />
+                      <div className="message-item-body">
+                        <div className="message-meta">
+                          <span className="message-author">
+                            {msg.korisnik?.email || 'Nepoznat'}
+                          </span>
+                          <span className="message-time">
+                            {msg.created_at
+                              ? new Date(msg.created_at).toLocaleString()
+                              : '-'}
+                          </span>
                         </div>
-                      ) : (
-                        <p className="message-text">{msg.tekst}</p>
-                      )}
-                      {canDeleteMessage(msg) && (
-                        <button
-                          className="message-delete"
-                          onClick={() => handleDeleteMessage(msg)}
-                          disabled={messageDeletingId === (msg.idPoruka ?? msg.id)}
-                        >
-                          {messageDeletingId === (msg.idPoruka ?? msg.id)
-                            ? 'Brisanje...'
-                            : 'Obriši poruku'}
-                        </button>
-                      )}
+                        {isGif ? (
+                          <div className="message-gif">
+                            <img src={msg.tekst} alt="GIF poruka" />
+                          </div>
+                        ) : (
+                          <p className="message-text">{msg.tekst}</p>
+                        )}
+                        {canDeleteMessage(msg) && (
+                          <button
+                            className="message-delete"
+                            onClick={() => handleDeleteMessage(msg)}
+                            disabled={messageDeletingId === (msg.idPoruka ?? msg.id)}
+                          >
+                            {messageDeletingId === (msg.idPoruka ?? msg.id)
+                              ? 'Brisanje...'
+                              : 'Obriši poruku'}
+                          </button>
+                        )}
+                      </div>
                     </div>
                   )
                 })}
@@ -853,6 +864,7 @@ const Chatovi = () => {
                   checked={selectedUserIds.includes(korisnik.idKorisnik)}
                   onChange={() => toggleUserSelection(korisnik.idKorisnik)}
                 />
+                <Avatar seed={getAvatarSeedForKorisnik(korisnik)} size={36} className="user-item-avatar" alt="" />
                 <span>
                   {korisnik.email}
                   {korisnik.uloga?.naziv ? ` (${korisnik.uloga.naziv})` : ''}
@@ -877,7 +889,7 @@ const Chatovi = () => {
               label="Email"
               type="email"
               value={profileForm.email}
-              onChange={(e) => setProfileForm({ email: e.target.value })}
+              onChange={(e) => setProfileForm((p) => ({ ...p, email: e.target.value }))}
               placeholder="unesi novi email"
             />
             {profileError && <p className="profile-error">{profileError}</p>}
@@ -891,6 +903,36 @@ const Chatovi = () => {
               >
                 {profileLoading ? 'Ažuriram...' : 'Sačuvaj'}
               </Button>
+            </div>
+          </div>
+          <div className="profile-section">
+            <h3>Ikonica (avatar)</h3>
+            <p className="profile-hint">Izaberi jednu od 20 ikonica. Klik na „Default” koristi ikonicu po emailu.</p>
+            <div className="profile-avatar-grid">
+              <button
+                type="button"
+                className={`profile-avatar-option ${!profileForm.avatar_seed ? 'profile-avatar-option--selected' : ''}`}
+                onClick={() => setProfileForm((p) => ({ ...p, avatar_seed: '' }))}
+                title="Default (email)"
+              >
+                <Avatar seed={profileForm.email} size={48} alt="" />
+                <span className="profile-avatar-label">Default</span>
+              </button>
+              {PRESET_AVATAR_SEEDS.map((seed, i) => {
+                const value = String(i + 1)
+                const selected = profileForm.avatar_seed === value
+                return (
+                  <button
+                    key={seed}
+                    type="button"
+                    className={`profile-avatar-option ${selected ? 'profile-avatar-option--selected' : ''}`}
+                    onClick={() => setProfileForm((p) => ({ ...p, avatar_seed: value }))}
+                    title={`Ikonica ${i + 1}`}
+                  >
+                    <Avatar seed={seed} size={48} alt="" />
+                  </button>
+                )
+              })}
             </div>
           </div>
           <div className="profile-section">
@@ -957,15 +999,20 @@ const Chatovi = () => {
             {gifLoading ? (
               <p className="message-loading">Učitavanje GIFova...</p>
             ) : (
-              gifResults.map((gif) => (
-                <button
-                  key={gif.id}
-                  className="gif-card"
-                  onClick={() => sendGifMessage(gif.images.fixed_width.url)}
-                >
-                  <img src={gif.images.fixed_width.url} alt={gif.title || 'GIF'} loading="lazy" />
-                </button>
-              ))
+              gifResults.map((gif) => {
+                const url = gif.images?.fixed_width?.url || gif.images?.downsized?.url || gif.images?.original?.url
+                if (!url) return null
+                return (
+                  <button
+                    key={gif.id}
+                    type="button"
+                    className="gif-card"
+                    onClick={() => sendGifMessage(url)}
+                  >
+                    <img src={url} alt={gif.title || 'GIF'} loading="lazy" />
+                  </button>
+                )
+              })
             )}
           </div>
         </Modal>

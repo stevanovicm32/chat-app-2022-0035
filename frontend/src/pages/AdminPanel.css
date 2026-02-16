@@ -58,6 +58,15 @@
   margin-bottom: 1rem;
 }
 
+.data-table td .admin-email-cell {
+  margin-left: 0.5rem;
+}
+
+.data-table td:has(.avatar) {
+  display: flex;
+  align-items: center;
+}
+
 .tabs {
   display: flex;
   gap: 1rem;

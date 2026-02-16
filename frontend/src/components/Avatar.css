@@ -1,0 +1,21 @@
+.avatar {
+  display: inline-block;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--avatar-bg, #e0e0e0);
+}
+
+.avatar.avatar--sm {
+  width: 28px;
+  height: 28px;
+}
+
+.avatar.avatar--md {
+  width: 40px;
+  height: 40px;
+}
+
+.avatar.avatar--lg {
+  width: 64px;
+  height: 64px;
+}

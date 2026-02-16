@@ -69,8 +69,13 @@ class Handler extends ExceptionHandler
                 ], 405);
             }
 
-            // Default error response
-            $statusCode = method_exists($e, 'getStatusCode') ? $e->getStatusCode() : 500;
+            // Default error response (status mora biti int)
+            $statusCode = 500;
+            if (method_exists($e, 'getStatusCode')) {
+                $statusCode = $e->getStatusCode();
+            } elseif (is_int($c = $e->getCode()) && $c >= 100 && $c < 600) {
+                $statusCode = $c;
+            }
             
             $response = [
                 'success' => false,

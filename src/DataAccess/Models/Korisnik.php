@@ -20,6 +20,7 @@ class Korisnik extends Authenticatable
 
     protected $fillable = [
         'email',
+        'avatar_seed',
         'lozinka',
         'suspendovan',
         'idUloga',

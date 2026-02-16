@@ -83,14 +83,22 @@ class KorisnikController extends BaseController
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage()
-            ], $e->getCode() ?: 500);
+            ], is_int($c = $e->getCode()) && $c >= 100 && $c < 600 ? $c : 500);
         }
     }
 
     public function update(UpdateKorisnikRequest $request, int $id): JsonResponse
     {
         try {
-            $korisnik = $this->korisnikService->updateKorisnik($id, $request->validated());
+            $currentUser = $request->user();
+            $validated = $request->validated();
+
+            // Ako korisnik menja samo svoj profil (nije admin), dozvoli samo email i avatar_seed
+            if ($currentUser->idKorisnik === $id && $currentUser->idUloga !== self::ADMIN_ROLE_ID) {
+                $validated = array_intersect_key($validated, array_flip(['email', 'avatar_seed']));
+            }
+
+            $korisnik = $this->korisnikService->updateKorisnik($id, $validated);
             return response()->json([
                 'success' => true,
                 'message' => 'Korisnik uspešno ažuriran',
@@ -100,7 +108,7 @@ class KorisnikController extends BaseController
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage()
-            ], $e->getCode() ?: 500);
+            ], is_int($c = $e->getCode()) && $c >= 100 && $c < 600 ? $c : 500);
         }
     }
 
@@ -124,7 +132,7 @@ class KorisnikController extends BaseController
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage()
-            ], $e->getCode() ?: 500);
+            ], is_int($c = $e->getCode()) && $c >= 100 && $c < 600 ? $c : 500);
         }
     }
     public function destroy(int $id): JsonResponse
@@ -139,7 +147,7 @@ class KorisnikController extends BaseController
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage()
-            ], $e->getCode() ?: 500);
+            ], is_int($c = $e->getCode()) && $c >= 100 && $c < 600 ? $c : 500);
         }
     }
 
@@ -164,7 +172,7 @@ class KorisnikController extends BaseController
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage()
-            ], $e->getCode() ?: 500);
+            ], is_int($c = $e->getCode()) && $c >= 100 && $c < 600 ? $c : 500);
         }
     }
 

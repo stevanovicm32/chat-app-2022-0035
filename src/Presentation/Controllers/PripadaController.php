@@ -36,7 +36,7 @@ class PripadaController extends BaseController
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage()
-            ], $e->getCode() ?: 500);
+            ], is_int($c = $e->getCode()) && $c >= 100 && $c < 600 ? $c : 500);
         }
     }
 
@@ -67,7 +67,7 @@ class PripadaController extends BaseController
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage()
-            ], $e->getCode() ?: 500);
+            ], is_int($c = $e->getCode()) && $c >= 100 && $c < 600 ? $c : 500);
         }
     }
 
@@ -83,7 +83,7 @@ class PripadaController extends BaseController
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage()
-            ], $e->getCode() ?: 500);
+            ], is_int($c = $e->getCode()) && $c >= 100 && $c < 600 ? $c : 500);
         }
     }
 
@@ -107,7 +107,7 @@ class PripadaController extends BaseController
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage()
-            ], $e->getCode() ?: 500);
+            ], is_int($c = $e->getCode()) && $c >= 100 && $c < 600 ? $c : 500);
         }
     }
 }
