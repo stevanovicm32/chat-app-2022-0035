@@ -195,6 +195,9 @@ ITEH/
 ├── Dockerfile                # Backend (Laravel) image
 ├── docker-compose.yml        # Orkestracija backend + frontend
 ├── docker-entrypoint.sh      # Entrypoint za backend (migracije, .env)
+├── .github/workflows/        # CI/CD (ci.yml, cd.yml)
+├── phpunit.xml               # PHPUnit konfiguracija
+├── tests/                    # PHPUnit testovi
 └── README.md                 # Ovaj fajl
 ```
 
@@ -222,6 +225,41 @@ Lozinke su obično u samom seederu (npr. `password` ili slično). Pogledaj `src/
   ```bash
   cd frontend && npm run build
   ```
+
+---
+
+## CI/CD (GitHub Actions)
+
+Projekat koristi **GitHub Actions** za automatsko pokretanje testova, build Docker imageova i (opciono) deployment.
+
+### CI pipeline (`.github/workflows/ci.yml`)
+
+- **Okidač:** svaki `push` i `pull_request` na grane `main` i `develop`.
+- **Koraci:**
+  1. **Backend testovi** – PHP 8.4, `composer install`, `php artisan test` (PHPUnit).
+  2. **Frontend build** – Node 20, `npm ci`, `npm run build`.
+  3. **Docker build** – build backend i frontend imageova (bez push-a).
+
+### CD pipeline (`.github/workflows/cd.yml`)
+
+- **Okidač:** `push` na `main` ili ručno (`workflow_dispatch`).
+- **Koraci:**
+  1. **Build i push** – Docker imagei se build-uju i push-uju u **GitHub Container Registry** (`ghcr.io`):
+     - `ghcr.io/<org>/iteh-backend:latest` i `ghcr.io/<org>/iteh-backend:<sha>`
+     - `ghcr.io/<org>/iteh-frontend:latest` i `ghcr.io/<org>/iteh-frontend:<sha>`
+- **Deployment:** U workflow-u je pripremljen (zakomentarisan) placeholder job za deploy na cloud (npr. Azure Container Apps, AWS ECS, Google Cloud Run). Kada imate okruženje i credentials (npr. u GitHub Secrets ili Environment), odkomentarisati korake i pozvati odgovarajuću CLI (az, aws, gcloud).
+
+### Lokalno pokretanje testova
+
+```bash
+composer install
+php artisan test
+```
+
+### Podešavanje deploya na cloud
+
+1. U GitHub repo: **Settings → Secrets and variables → Actions** dodajte potrebne secrets (npr. `AZURE_CREDENTIALS`, `AWS_ACCESS_KEY_ID`).
+2. U `.github/workflows/cd.yml` odkomentarisati job `deploy` i dodati korake za vaš provajder (primeri u komentarima).
 
 ---
 
