@@ -1,0 +1,15 @@
+/node_modules
+/vendor
+/frontend
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+*.md
+database.sqlite
+storage/logs/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+.DS_Store
