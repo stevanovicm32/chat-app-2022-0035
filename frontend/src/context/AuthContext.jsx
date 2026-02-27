@@ -50,12 +50,22 @@ export const AuthProvider = ({ children }) => {
         axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`
         return { success: true }
       }
+      return { success: false, message: response.data?.message || 'Greška pri prijavi' }
     } catch (error) {
-      return { 
-        success: false, 
-        message: error.response?.data?.message || 'Greška pri prijavi' 
-      }
+      const msg = error.response?.data?.message || 
+        (error.code === 'ERR_NETWORK' ? 'Backend nije dostupan. Proverite da li server radi i CORS.' : 'Greška pri prijavi')
+      return { success: false, message: msg }
     }
+  }
+
+  const formatValidationErrors = (errors) => {
+    if (!errors || typeof errors !== 'object') return null
+    const parts = []
+    for (const [field, msgs] of Object.entries(errors)) {
+      const arr = Array.isArray(msgs) ? msgs : [msgs]
+      parts.push(...arr.map(m => (field + ': ' + m)))
+    }
+    return parts.join('. ')
   }
 
   const register = async (email, lozinka, idUloga) => {
@@ -63,7 +73,7 @@ export const AuthProvider = ({ children }) => {
       const response = await axios.post('/api/register', { 
         email, 
         lozinka, 
-        idUloga 
+        idUloga: typeof idUloga === 'number' ? idUloga : parseInt(idUloga, 10)
       })
       if (response.data.success) {
         // Automatski prijavi korisnika nakon registracije
@@ -78,11 +88,13 @@ export const AuthProvider = ({ children }) => {
         }
         return { success: true, message: 'Registracija uspešna, prijavite se' }
       }
+      return { success: false, message: response.data?.message || 'Greška pri registraciji' }
     } catch (error) {
-      return { 
-        success: false, 
-        message: error.response?.data?.message || error.response?.data?.errors ? JSON.stringify(error.response.data.errors) : 'Greška pri registraciji' 
-      }
+      const validation = formatValidationErrors(error.response?.data?.errors)
+      const msg = error.response?.data?.message || 
+        validation ||
+        (error.code === 'ERR_NETWORK' ? 'Backend nije dostupan. Proverite da li server radi i CORS.' : 'Greška pri registraciji')
+      return { success: false, message: msg }
     }
   }
 

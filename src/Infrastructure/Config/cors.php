@@ -6,13 +6,16 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => [
-        'http://localhost:3000',
-        'http://127.0.0.1:3000',
-        'http://localhost:8000',
-        'http://127.0.0.1:8000',
-        'http://127.0.0.1:8001',
-    ],
+    'allowed_origins' => array_values(array_filter(array_unique(array_merge(
+        [
+            'http://localhost:3000',
+            'http://127.0.0.1:3000',
+            'http://localhost:8000',
+            'http://127.0.0.1:8000',
+            'http://127.0.0.1:8001',
+        ],
+        env('FRONTEND_URL') ? [rtrim(env('FRONTEND_URL'), '/')] : []
+    )))),
 
     'allowed_origins_patterns' => [],
 

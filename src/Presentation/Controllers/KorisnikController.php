@@ -93,7 +93,6 @@ class KorisnikController extends BaseController
             $currentUser = $request->user();
             $validated = $request->validated();
 
-            // Ako korisnik menja samo svoj profil (nije admin), dozvoli samo email i avatar_seed
             if ($currentUser->idKorisnik === $id && $currentUser->idUloga !== self::ADMIN_ROLE_ID) {
                 $validated = array_intersect_key($validated, array_flip(['email', 'avatar_seed']));
             }

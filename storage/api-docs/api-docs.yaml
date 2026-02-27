@@ -1,0 +1,96 @@
+openapi: 3.0.0
+info:
+  title: 'Chat API'
+  description: 'REST API za Chat aplikaciju – autentifikacija, korisnici, chatovi, poruke. Laravel Sanctum za zaštitu endpointa.'
+  version: 1.0.0
+servers:
+  -
+    url: 'http://localhost:8000'
+    description: 'Lokalni backend'
+paths:
+  /api/register:
+    post:
+      tags:
+        - Auth
+      summary: 'Registracija novog korisnika'
+      operationId: 49e0c83f5ad2ab182e3f7937b9d778e5
+      requestBody:
+        content:
+          application/json:
+            schema:
+              required:
+                - email
+                - lozinka
+                - idUloga
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: korisnik@example.com
+                lozinka:
+                  type: string
+                  minLength: 6
+                idUloga:
+                  type: integer
+                  example: 3
+              type: object
+      responses:
+        201:
+          description: 'Uspešna registracija'
+        422:
+          description: 'Validaciona greška'
+  /api/login:
+    post:
+      tags:
+        - Auth
+      summary: 'Prijava korisnika'
+      operationId: 0e26980a4ad59c7d168d88aad67b259a
+      requestBody:
+        content:
+          application/json:
+            schema:
+              required:
+                - email
+                - lozinka
+              properties:
+                email:
+                  type: string
+                  format: email
+                lozinka:
+                  type: string
+              type: object
+      responses:
+        200:
+          description: 'Uspešna prijava, vraća token i podatke korisnika'
+        401:
+          description: 'Neispravni kredencijali'
+        422:
+          description: 'Validaciona greška'
+  /api/logout:
+    post:
+      tags:
+        - Auth
+      summary: 'Odjava korisnika'
+      operationId: d3798e86fb3cec3e9b4cc33c2e2ac9ff
+      responses:
+        200:
+          description: 'Uspešna odjava'
+        401:
+          description: Neautorizovan
+      security:
+        -
+          sanctum: []
+tags:
+  -
+    name: Auth
+    description: 'Registracija, prijava, odjava'
+components:
+  securitySchemes:
+    sanctum:
+      type: apiKey
+      description: 'Laravel Sanctum Bearer token. Format: Bearer <token>'
+      name: Authorization
+      in: header
+security:
+  -
+    sanctum: []

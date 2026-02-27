@@ -30,11 +30,11 @@ const Register = () => {
       })
       .catch(error => {
         console.error('Error fetching roles:', error)
-        const msg = error.response?.data?.message || error.response?.data?.exception || error.message
-        if (error.response?.data) {
-          console.error('Backend response:', error.response.data)
-        }
-        setError(msg || 'Nije moguće učitati uloge. Proverite da li backend radi na portu iz VITE_BACKEND_URL.')
+        const data = error.response?.data
+        const msg = data?.message || data?.exception || error.message ||
+          (error.code === 'ERR_NETWORK' ? 'Backend nije dostupan. Pokrenite php artisan serve.' : 'Nije moguće učitati uloge.')
+        if (data) console.error('Backend response:', data)
+        setError(msg)
       })
   }, [user, navigate])
 
@@ -52,9 +52,15 @@ const Register = () => {
       return
     }
 
+    const parsedUloga = parseInt(idUloga, 10)
+    if (!idUloga || isNaN(parsedUloga)) {
+      setError('Izaberite ulogu')
+      return
+    }
+
     setLoading(true)
 
-    const result = await register(email, lozinka, parseInt(idUloga))
+    const result = await register(email, lozinka, parsedUloga)
     
     if (result.success) {
       navigate('/chatovi')

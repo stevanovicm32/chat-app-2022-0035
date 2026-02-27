@@ -9,6 +9,7 @@ use App\Presentation\Controllers\PorukaController;
 use App\Presentation\Controllers\DatotekaController;
 use App\Presentation\Controllers\PripadaController;
 use App\Presentation\Controllers\AuthController;
+use App\Presentation\Controllers\StatsController;
 
 // Auth routes (public)
 Route::post('/register', [AuthController::class, 'register']);
@@ -16,6 +17,8 @@ Route::post('/login', [AuthController::class, 'login']);
 
 // Protected routes - zahtevaju autentifikaciju
 Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/stats', [StatsController::class, 'index']);
+
     Route::get('/user', function (Request $request) {
         return response()->json([
             'success' => true,

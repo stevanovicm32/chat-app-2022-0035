@@ -2,6 +2,7 @@
 
 namespace App\Presentation\Controllers;
 
+use App\DataAccess\Models\Uloga;
 use App\Presentation\Requests\StoreUlogaRequest;
 use App\Presentation\Requests\UpdateUlogaRequest;
 use App\Business\Services\UlogaService;
@@ -18,7 +19,7 @@ class UlogaController extends BaseController
     public function index(): JsonResponse
     {
         try {
-            $uloge = $this->ulogaService->getAllUloge();
+            $uloge = Uloga::all();
             return response()->json([
                 'success' => true,
                 'data' => $uloge
@@ -28,7 +29,6 @@ class UlogaController extends BaseController
                 'message' => $e->getMessage(),
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString(),
             ]);
             return response()->json([
                 'success' => false,

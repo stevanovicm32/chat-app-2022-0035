@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import axios from 'axios'
 import { Avatar, getAvatarSeedForKorisnik } from '../components'
+import StatsChart from '../components/StatsChart'
 import './AdminPanel.css'
 
 const AdminPanel = () => {
@@ -146,6 +147,12 @@ const AdminPanel = () => {
           >
             Uloge
           </button>
+          <button
+            className={activeTab === 'statistika' ? 'tab active' : 'tab'}
+            onClick={() => setActiveTab('statistika')}
+          >
+            Statistika
+          </button>
         </div>
 
         {loading ? (
@@ -220,6 +227,10 @@ const AdminPanel = () => {
                   </tbody>
                 </table>
               </div>
+            )}
+
+            {activeTab === 'statistika' && (
+              <StatsChart />
             )}
 
             {activeTab === 'uloge' && (
