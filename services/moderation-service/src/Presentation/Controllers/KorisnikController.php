@@ -1,0 +1,187 @@
+<?php
+
+namespace App\Presentation\Controllers;
+
+use App\Presentation\Requests\ChangePasswordRequest;
+use App\Presentation\Requests\StoreKorisnikRequest;
+use App\Presentation\Requests\UpdateKorisnikRequest;
+use App\Business\Services\KorisnikService;
+use App\Presentation\Controllers\BaseController;
+use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
+
+class KorisnikController extends BaseController
+{
+    private const ADMIN_ROLE_ID = 1;
+    private const MODERATOR_ROLE_ID = 3;
+
+    public function __construct(
+        private KorisnikService $korisnikService
+    ) {}
+
+    public function index(Request $request): JsonResponse
+    {
+        try {
+            $filters = [];
+            
+            if ($request->has('idUloga')) {
+                $filters['idUloga'] = $request->idUloga;
+            }
+
+            if ($request->has('suspendovan')) {
+                $filters['suspendovan'] = $request->suspendovan === 'true';
+            }
+
+            $korisnici = $this->korisnikService->getAllKorisnici($filters);
+            
+            return response()->json([
+                'success' => true,
+                'data' => $korisnici
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function store(StoreKorisnikRequest $request): JsonResponse
+    {
+        try {
+            $korisnik = $this->korisnikService->createKorisnik($request->validated());
+            return response()->json([
+                'success' => true,
+                'message' => 'Korisnik uspešno kreiran',
+                'data' => $korisnik
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function show(int $id): JsonResponse
+    {
+        try {
+            $korisnik = $this->korisnikService->getKorisnikById($id);
+            
+            if (!$korisnik) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Korisnik nije pronađen'
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $korisnik
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], is_int($c = $e->getCode()) && $c >= 100 && $c < 600 ? $c : 500);
+        }
+    }
+
+    public function update(UpdateKorisnikRequest $request, int $id): JsonResponse
+    {
+        try {
+            $currentUser = $request->user();
+            $validated = $request->validated();
+
+            if ($currentUser->idKorisnik === $id && $currentUser->idUloga !== self::ADMIN_ROLE_ID) {
+                $validated = array_intersect_key($validated, array_flip(['email', 'avatar_seed']));
+            }
+
+            $korisnik = $this->korisnikService->updateKorisnik($id, $validated);
+            return response()->json([
+                'success' => true,
+                'message' => 'Korisnik uspešno ažuriran',
+                'data' => $korisnik
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], is_int($c = $e->getCode()) && $c >= 100 && $c < 600 ? $c : 500);
+        }
+    }
+
+    public function changePassword(ChangePasswordRequest $request, int $id): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            if (!$user || $user->idKorisnik !== $id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Nedozvoljen pristup'
+                ], 403);
+            }
+
+            $this->korisnikService->changePassword($id, $request->staraLozinka, $request->novaLozinka);
+            return response()->json([
+                'success' => true,
+                'message' => 'Lozinka uspešno promenjena'
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], is_int($c = $e->getCode()) && $c >= 100 && $c < 600 ? $c : 500);
+        }
+    }
+    public function destroy(int $id): JsonResponse
+    {
+        try {
+            $this->korisnikService->deleteKorisnik($id);
+            return response()->json([
+                'success' => true,
+                'message' => 'Korisnik uspešno obrisan'
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], is_int($c = $e->getCode()) && $c >= 100 && $c < 600 ? $c : 500);
+        }
+    }
+
+    public function suspend(Request $request, int $id): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            if (!$this->canManageSuspensions($user)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Nemate dozvolu za suspendeziranje korisnika'
+                ], 403);
+            }
+
+            $korisnik = $this->korisnikService->suspendKorisnik($id);
+            return response()->json([
+                'success' => true,
+                'message' => 'Korisnik suspendovan na 3 dana',
+                'data' => $korisnik
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], is_int($c = $e->getCode()) && $c >= 100 && $c < 600 ? $c : 500);
+        }
+    }
+
+    private function canManageSuspensions($user): bool
+    {
+        if (!$user) {
+            return false;
+        }
+
+        return in_array($user->idUloga, [self::ADMIN_ROLE_ID, self::MODERATOR_ROLE_ID], true);
+    }
+}
+

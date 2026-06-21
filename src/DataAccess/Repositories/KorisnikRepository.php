@@ -29,7 +29,7 @@ class KorisnikRepository implements KorisnikRepositoryInterface
 
     public function find(int $id): ?Korisnik
     {
-        return Korisnik::with(['uloga', 'chatovi', 'poruke'])->find($id);
+        return Korisnik::with(['uloga'])->find($id);
     }
 
     public function findByEmail(string $email): ?Korisnik

@@ -13,7 +13,6 @@ use Illuminate\Http\JsonResponse;
 class KorisnikController extends BaseController
 {
     private const ADMIN_ROLE_ID = 1;
-    private const MODERATOR_ROLE_ID = 3;
 
     public function __construct(
         private KorisnikService $korisnikService
@@ -148,40 +147,6 @@ class KorisnikController extends BaseController
                 'message' => $e->getMessage()
             ], is_int($c = $e->getCode()) && $c >= 100 && $c < 600 ? $c : 500);
         }
-    }
-
-    public function suspend(Request $request, int $id): JsonResponse
-    {
-        try {
-            $user = $request->user();
-            if (!$this->canManageSuspensions($user)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Nemate dozvolu za suspendeziranje korisnika'
-                ], 403);
-            }
-
-            $korisnik = $this->korisnikService->suspendKorisnik($id);
-            return response()->json([
-                'success' => true,
-                'message' => 'Korisnik suspendovan na 3 dana',
-                'data' => $korisnik
-            ], 200);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], is_int($c = $e->getCode()) && $c >= 100 && $c < 600 ? $c : 500);
-        }
-    }
-
-    private function canManageSuspensions($user): bool
-    {
-        if (!$user) {
-            return false;
-        }
-
-        return in_array($user->idUloga, [self::ADMIN_ROLE_ID, self::MODERATOR_ROLE_ID], true);
     }
 }
 

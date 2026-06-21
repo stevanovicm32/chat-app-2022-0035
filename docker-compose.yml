@@ -1,45 +1,179 @@
 services:
-  backend:
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: iteh-api-gateway
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      - identity-service
+      - moderation-service
+      - chat-service
+    networks:
+      - iteh-net
+
+  identity-service:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: chat-backend
+    container_name: iteh-identity-service
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "8001:8001"
     environment:
-      APP_NAME: "Chat Aplikacija"
+      APP_NAME: "Identity Service"
       APP_ENV: local
       APP_DEBUG: "true"
       APP_KEY: ${APP_KEY:-}
-      APP_URL: http://localhost:8000
-      DB_CONNECTION: sqlite
-      DB_DATABASE: /var/www/html/storage/database.sqlite
+      APP_URL: http://localhost:8001
+      SERVICE_PORT: "8001"
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres-identity
+      DB_PORT: "5432"
+      DB_DATABASE: identity_db
+      DB_USERNAME: identity
+      DB_PASSWORD: identity_secret
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-internal-dev-key}
+      CHAT_SERVICE_URL: http://chat-service:8003
+    depends_on:
+      postgres-identity:
+        condition: service_healthy
     volumes:
-      - backend_storage:/var/www/html/storage
-      - backend_bootstrap_cache:/var/www/html/bootstrap/cache
+      - identity_storage:/var/www/html/storage
+      - identity_bootstrap_cache:/var/www/html/bootstrap/cache
     networks:
-      - chat-net
+      - iteh-net
+
+  moderation-service:
+    build:
+      context: ./services/moderation-service
+      dockerfile: Dockerfile
+    container_name: iteh-moderation-service
+    restart: unless-stopped
+    ports:
+      - "8002:8002"
+    environment:
+      APP_NAME: "Moderation Service"
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_KEY: ${MODERATION_APP_KEY:-}
+      APP_URL: http://localhost:8002
+      SERVICE_PORT: "8002"
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres-moderation
+      DB_PORT: "5432"
+      DB_DATABASE: moderation_db
+      DB_USERNAME: moderation
+      DB_PASSWORD: moderation_secret
+      IDENTITY_SERVICE_URL: http://identity-service:8001
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-internal-dev-key}
+    depends_on:
+      postgres-moderation:
+        condition: service_healthy
+      identity-service:
+        condition: service_started
+    volumes:
+      - moderation_storage:/var/www/html/storage
+      - moderation_bootstrap_cache:/var/www/html/bootstrap/cache
+    networks:
+      - iteh-net
+
+  chat-service:
+    build:
+      context: ./services/chat-service
+      dockerfile: Dockerfile
+    container_name: iteh-chat-service
+    restart: unless-stopped
+    ports:
+      - "8003:8003"
+    environment:
+      PORT: "8003"
+      MONGODB_URI: mongodb://mongodb:27017/chat_db
+      IDENTITY_SERVICE_URL: http://identity-service:8001
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      identity-service:
+        condition: service_started
+    networks:
+      - iteh-net
+
+  postgres-identity:
+    image: postgres:16-alpine
+    container_name: iteh-postgres-identity
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: identity_db
+      POSTGRES_USER: identity
+      POSTGRES_PASSWORD: identity_secret
+    volumes:
+      - postgres_identity_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U identity -d identity_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - iteh-net
+
+  postgres-moderation:
+    image: postgres:16-alpine
+    container_name: iteh-postgres-moderation
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: moderation_db
+      POSTGRES_USER: moderation
+      POSTGRES_PASSWORD: moderation_secret
+    volumes:
+      - postgres_moderation_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U moderation -d moderation_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - iteh-net
+
+  mongodb:
+    image: mongo:7
+    container_name: iteh-mongodb
+    restart: unless-stopped
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - iteh-net
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: chat-frontend
+    container_name: iteh-frontend
     restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
-      VITE_BACKEND_URL: http://backend:8000
+      VITE_API_PROXY_TARGET: http://api-gateway:8080
     depends_on:
-      - backend
+      - api-gateway
     networks:
-      - chat-net
+      - iteh-net
 
 volumes:
-  backend_storage:
-  backend_bootstrap_cache:
+  postgres_identity_data:
+  postgres_moderation_data:
+  mongodb_data:
+  identity_storage:
+  identity_bootstrap_cache:
+  moderation_storage:
+  moderation_bootstrap_cache:
 
 networks:
-  chat-net:
+  iteh-net:
     driver: bridge

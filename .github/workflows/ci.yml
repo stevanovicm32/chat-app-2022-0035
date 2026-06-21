@@ -21,7 +21,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: pdo, pdo_sqlite, mbstring, zip, bcmath
+          extensions: pdo, pdo_sqlite, pdo_pgsql, mbstring, zip, bcmath
           coverage: none
           tools: composer
 
@@ -32,7 +32,7 @@ jobs:
           key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
           restore-keys: ${{ runner.os }}-composer-
 
-      - name: Install dependencies
+      - name: Install dependencies (Identity)
         run: composer install --no-progress --prefer-dist --no-interaction
 
   frontend-build:
@@ -66,16 +66,41 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build backend image
+      - name: Build API Gateway image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./api-gateway
+          file: ./api-gateway/Dockerfile
+          push: false
+          load: true
+          tags: iteh-api-gateway:ci
+
+      - name: Build Identity Service image
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
           push: false
           load: true
-          tags: iteh-backend:ci
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          tags: iteh-identity-service:ci
+
+      - name: Build Moderation Service image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./services/moderation-service
+          file: ./services/moderation-service/Dockerfile
+          push: false
+          load: true
+          tags: iteh-moderation-service:ci
+
+      - name: Build Chat Service image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./services/chat-service
+          file: ./services/chat-service/Dockerfile
+          push: false
+          load: true
+          tags: iteh-chat-service:ci
 
       - name: Build frontend image
         uses: docker/build-push-action@v6
@@ -85,5 +110,3 @@ jobs:
           push: false
           load: true
           tags: iteh-frontend:ci
-          cache-from: type=gha
-          cache-to: type=gha,mode=max

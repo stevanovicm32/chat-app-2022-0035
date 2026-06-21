@@ -78,6 +78,13 @@ class AuthController extends BaseController
                 ], 401);
             }
 
+            if ($korisnik->suspendovan && \Illuminate\Support\Carbon::parse($korisnik->suspendovan)->isFuture()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Nalog je suspendovan do ' . $korisnik->suspendovan->format('d.m.Y H:i')
+                ], 403);
+            }
+
             // Kreiraj token - sa fallback ako Sanctum ne radi
             try {
                 $token = $korisnik->createToken('auth-token')->plainTextToken;

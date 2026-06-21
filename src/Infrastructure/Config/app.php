@@ -39,6 +39,10 @@ return [
 
     'asset_url' => env('ASSET_URL'),
 
+    'internal_api_key' => env('INTERNAL_API_KEY'),
+
+    'chat_service_url' => env('CHAT_SERVICE_URL', 'http://chat-service:8003'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone
