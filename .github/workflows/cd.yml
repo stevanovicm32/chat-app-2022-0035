@@ -1,0 +1,38 @@
+name: CD
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+env:
+  REGISTRY: ghcr.io
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - { name: api-gateway, context: ./api-gateway, file: ./api-gateway/Dockerfile }
+          - { name: identity-service, context: ., file: ./Dockerfile }
+          - { name: moderation-service, context: ./services/moderation-service, file: ./services/moderation-service/Dockerfile }
+          - { name: chat-service, context: ./services/chat-service, file: ./services/chat-service/Dockerfile }
+          - { name: event-processor, context: ./services/event-processor, file: ./services/event-processor/Dockerfile }
+          - { name: frontend, context: ./frontend, file: ./frontend/Dockerfile }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/iteh-${{ matrix.name }}:latest
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/iteh-${{ matrix.name }}:${{ github.sha }}
