@@ -1,15 +1,12 @@
-# Identity Service (Laravel) - PHP 8.4
+# Identity Service (Laravel) - PHP 8.4 + rdkafka
 FROM php:8.4-cli
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    git \
-    unzip \
-    libzip-dev \
-    libpng-dev \
-    libonig-dev \
-    libxml2-dev \
-    libpq-dev \
+    git unzip libzip-dev libpng-dev libonig-dev libxml2-dev libpq-dev \
+    librdkafka-dev $PHPIZE_DEPS \
     && docker-php-ext-install pdo pdo_pgsql mbstring zip exif pcntl bcmath \
+    && pecl install rdkafka \
+    && docker-php-ext-enable rdkafka \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
@@ -23,7 +20,11 @@ COPY . .
 
 RUN composer dump-autoload --optimize
 
-RUN mkdir -p storage/framework/{sessions,views,cache/data} storage/logs bootstrap/cache \
+RUN mkdir -p storage/framework/sessions \
+    storage/framework/views \
+    storage/framework/cache/data \
+    storage/logs \
+    bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
 
 COPY docker-entrypoint.sh /usr/local/bin/

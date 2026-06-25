@@ -29,4 +29,11 @@ php artisan migrate --path=src/Infrastructure/Database/Migrations --force --no-i
 
 php artisan db:seed --class=Database\\Seeders\\UlogaSeeder --force --no-interaction 2>/dev/null || true
 
+mkdir -p storage/framework/sessions \
+  storage/framework/views \
+  storage/framework/cache/data \
+  storage/logs \
+  bootstrap/cache
+chmod -R 775 storage bootstrap/cache 2>/dev/null || true
+
 exec "$@"

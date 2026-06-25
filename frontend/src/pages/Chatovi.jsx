@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import axios from 'axios'
+import { sanitizeMessage } from '../utils/sanitize'
 import { Avatar, Button, Card, Input, Modal, getAvatarSeedForKorisnik, PRESET_AVATAR_SEEDS } from '../components'
 import './Chatovi.css'
 
@@ -783,7 +784,7 @@ const Chatovi = () => {
                             <img src={msg.tekst} alt="GIF poruka" />
                           </div>
                         ) : (
-                          <p className="message-text">{msg.tekst}</p>
+                          <p className="message-text">{sanitizeMessage(msg.tekst)}</p>
                         )}
                         {canDeleteMessage(msg) && (
                           <button

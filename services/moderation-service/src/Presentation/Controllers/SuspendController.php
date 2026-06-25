@@ -17,8 +17,11 @@ class SuspendController extends BaseController
 
             return response()->json([
                 'success' => true,
-                'message' => 'Korisnik suspendovan na 3 dana',
+                'message' => $result['async'] ?? false
+                    ? 'Zahtev za suspenziju poslat (Kafka Saga u obradi)'
+                    : 'Korisnik suspendovan na 3 dana',
                 'data' => $result['korisnik'],
+                'async' => $result['async'] ?? false,
             ]);
         } catch (\Exception $e) {
             return response()->json([

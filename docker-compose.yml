@@ -1,4 +1,25 @@
 services:
+  kafka:
+    image: apache/kafka:3.9.0
+    container_name: iteh-kafka
+    restart: unless-stopped
+    hostname: kafka
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    networks:
+      - iteh-net
+
   api-gateway:
     build:
       context: ./api-gateway
@@ -37,12 +58,45 @@ services:
       DB_PASSWORD: identity_secret
       INTERNAL_API_KEY: ${INTERNAL_API_KEY:-internal-dev-key}
       CHAT_SERVICE_URL: http://chat-service:8003
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_ENABLED: "true"
     depends_on:
       postgres-identity:
         condition: service_healthy
+      kafka:
+        condition: service_started
     volumes:
       - identity_storage:/var/www/html/storage
       - identity_bootstrap_cache:/var/www/html/bootstrap/cache
+    networks:
+      - iteh-net
+
+  identity-kafka-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: iteh-identity-kafka-worker
+    restart: unless-stopped
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_KEY: ${APP_KEY:-}
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres-identity
+      DB_PORT: "5432"
+      DB_DATABASE: identity_db
+      DB_USERNAME: identity
+      DB_PASSWORD: identity_secret
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_GROUP_ID: identity-service-group
+    depends_on:
+      identity-service:
+        condition: service_started
+      kafka:
+        condition: service_started
+      event-processor:
+        condition: service_started
+    command: ["php", "artisan", "kafka:consume"]
     networks:
       - iteh-net
 
@@ -69,14 +123,45 @@ services:
       DB_PASSWORD: moderation_secret
       IDENTITY_SERVICE_URL: http://identity-service:8001
       INTERNAL_API_KEY: ${INTERNAL_API_KEY:-internal-dev-key}
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_ENABLED: "true"
     depends_on:
       postgres-moderation:
         condition: service_healthy
       identity-service:
         condition: service_started
+      kafka:
+        condition: service_started
     volumes:
       - moderation_storage:/var/www/html/storage
       - moderation_bootstrap_cache:/var/www/html/bootstrap/cache
+    networks:
+      - iteh-net
+
+  moderation-kafka-worker:
+    build:
+      context: ./services/moderation-service
+      dockerfile: Dockerfile
+    container_name: iteh-moderation-kafka-worker
+    restart: unless-stopped
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_KEY: ${MODERATION_APP_KEY:-}
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres-moderation
+      DB_PORT: "5432"
+      DB_DATABASE: moderation_db
+      DB_USERNAME: moderation
+      DB_PASSWORD: moderation_secret
+      IDENTITY_SERVICE_URL: http://identity-service:8001
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-internal-dev-key}
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_GROUP_ID: moderation-service-group
+    depends_on:
+      - moderation-service
+      - kafka
+    command: ["php", "artisan", "kafka:consume"]
     networks:
       - iteh-net
 
@@ -92,11 +177,31 @@ services:
       PORT: "8003"
       MONGODB_URI: mongodb://mongodb:27017/chat_db
       IDENTITY_SERVICE_URL: http://identity-service:8001
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_ENABLED: "true"
+      CORS_ORIGINS: http://localhost:3000
     depends_on:
       mongodb:
         condition: service_healthy
       identity-service:
         condition: service_started
+      kafka:
+        condition: service_started
+    networks:
+      - iteh-net
+
+  event-processor:
+    build:
+      context: ./services/event-processor
+      dockerfile: Dockerfile
+    container_name: iteh-event-processor
+    restart: unless-stopped
+    environment:
+      PORT: "8010"
+      KAFKA_BROKERS: kafka:9092
+    depends_on:
+      - kafka
+      - identity-service
     networks:
       - iteh-net
 
@@ -115,6 +220,34 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - iteh-net
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: iteh-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks:
+      - iteh-net
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: iteh-grafana
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+    depends_on:
+      - prometheus
     networks:
       - iteh-net
 
@@ -144,9 +277,9 @@ services:
       - mongodb_data:/data/db
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 5s
+      interval: 30s
       timeout: 5s
-      retries: 5
+      retries: 3
     networks:
       - iteh-net
 
@@ -158,6 +291,8 @@ services:
     restart: unless-stopped
     ports:
       - "3000:3000"
+    env_file:
+      - ./frontend/.env
     environment:
       VITE_API_PROXY_TARGET: http://api-gateway:8080
     depends_on:

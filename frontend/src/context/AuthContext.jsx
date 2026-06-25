@@ -17,6 +17,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    axios.get('/sanctum/csrf-cookie').catch(() => {})
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
       fetchUser()

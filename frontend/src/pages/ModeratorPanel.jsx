@@ -40,8 +40,16 @@ const ModeratorPanel = () => {
     try {
       const response = await axios.patch(`/api/korisnik/${id}/suspend`)
       if (response.data.success) {
-        setFeedback(`Korisnik je suspendovan do ${new Date(response.data.data.suspendovan).toLocaleString('sr-RS')}`)
-        fetchKorisnici()
+        if (response.data.async) {
+          setFeedback(response.data.message || 'Zahtev za suspenziju poslat (Kafka). Osvežite za nekoliko sekundi.')
+          setTimeout(fetchKorisnici, 3000)
+        } else if (response.data.data?.suspendovan) {
+          setFeedback(`Korisnik je suspendovan do ${new Date(response.data.data.suspendovan).toLocaleString('sr-RS')}`)
+          fetchKorisnici()
+        } else {
+          setFeedback(response.data.message || 'Suspenzija u obradi')
+          fetchKorisnici()
+        }
       } else {
         setFeedback(response.data.message || 'Neuspešna suspenzija')
       }

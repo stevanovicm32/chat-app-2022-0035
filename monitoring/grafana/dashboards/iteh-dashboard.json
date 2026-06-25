@@ -1,0 +1,42 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "panels": [
+    {
+      "title": "Chat HTTP zahtevi",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(rate(chat_http_requests_total[1m])) by (method)",
+          "legendFormat": "{{method}}"
+        }
+      ]
+    },
+    {
+      "title": "Event Processor događaji",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(rate(event_processor_events_total[1m])) by (topic, status)",
+          "legendFormat": "{{topic}} {{status}}"
+        }
+      ]
+    },
+    {
+      "title": "Kafka poruke (event-processor)",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "sum(event_processor_kafka_messages_total)"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 39,
+  "title": "ITEH Mikroservisi",
+  "uid": "iteh-dashboard",
+  "version": 1
+}

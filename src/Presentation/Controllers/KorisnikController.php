@@ -90,6 +90,9 @@ class KorisnikController extends BaseController
     {
         try {
             $currentUser = $request->user();
+            if (!$this->canAccessKorisnik($currentUser, $id)) {
+                return response()->json(['success' => false, 'message' => 'Nedozvoljen pristup resursu (IDOR)'], 403);
+            }
             $validated = $request->validated();
 
             if ($currentUser->idKorisnik === $id && $currentUser->idUloga !== self::ADMIN_ROLE_ID) {
@@ -133,9 +136,13 @@ class KorisnikController extends BaseController
             ], is_int($c = $e->getCode()) && $c >= 100 && $c < 600 ? $c : 500);
         }
     }
-    public function destroy(int $id): JsonResponse
+    public function destroy(Request $request, int $id): JsonResponse
     {
         try {
+            $currentUser = $request->user();
+            if (!$currentUser || ($currentUser->idUloga !== self::ADMIN_ROLE_ID && $currentUser->idKorisnik !== $id)) {
+                return response()->json(['success' => false, 'message' => 'Nedozvoljen pristup resursu (IDOR)'], 403);
+            }
             $this->korisnikService->deleteKorisnik($id);
             return response()->json([
                 'success' => true,
@@ -147,6 +154,17 @@ class KorisnikController extends BaseController
                 'message' => $e->getMessage()
             ], is_int($c = $e->getCode()) && $c >= 100 && $c < 600 ? $c : 500);
         }
+    }
+
+    private function canAccessKorisnik($user, int $targetId): bool
+    {
+        if (!$user) {
+            return false;
+        }
+        if ($user->idUloga === self::ADMIN_ROLE_ID) {
+            return true;
+        }
+        return $user->idKorisnik === $targetId;
     }
 }
 

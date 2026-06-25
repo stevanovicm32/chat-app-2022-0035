@@ -4,16 +4,20 @@ namespace App\Business\Services;
 
 use App\DataAccess\Models\Prijava;
 use App\DataAccess\Models\Sankcija;
-use App\Infrastructure\Clients\IdentityClient;
+use App\Infrastructure\Messaging\KafkaProducer;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 
 class ModerationService
 {
     private const ADMIN_ROLE_ID = 1;
     private const MODERATOR_ROLE_ID = 3;
+    private const TOPIC_SUSPEND_REQUEST = 'suspenzija-zahtev';
 
-    public function __construct(private IdentityClient $identityClient) {}
+    public function __construct(
+        private KafkaProducer $kafkaProducer
+    ) {}
 
     public function getAllPrijave(array $filters = []): Collection
     {
@@ -78,7 +82,7 @@ class ModerationService
         $optuzeniId = $prijava->optuzeni_id_ref;
         $korisnik = null;
         if ($optuzeniId) {
-            $korisnik = $this->identityClient->suspendKorisnik($optuzeniId, $days);
+            $korisnik = $this->dispatchSuspendEvent($optuzeniId, $days, $sankcija->idSankcija, $prijavaId, $moderatorId);
         }
 
         return [
@@ -101,17 +105,49 @@ class ModerationService
             'datum' => Carbon::today(),
         ]);
 
-        $result = $this->createSankcija($prijava->idPrijava, $moderator->idKorisnik, $days);
+        $sankcija = Sankcija::create([
+            'datum_isteka' => Carbon::now()->addDays($days),
+            'moderator_id_ref' => $moderator->idKorisnik,
+            'idPrijava' => $prijava->idPrijava,
+        ]);
 
-        if (!$result['korisnik']) {
-            $result['korisnik'] = $this->identityClient->suspendKorisnik($targetId, $days);
-        }
+        $korisnik = $this->dispatchSuspendEvent(
+            $targetId,
+            $days,
+            $sankcija->idSankcija,
+            $prijava->idPrijava,
+            $moderator->idKorisnik
+        );
 
-        if (!$result['korisnik']) {
-            throw new \Exception('Neuspešna suspenzija korisnika u Identity servisu', 502);
-        }
+        return [
+            'sankcija' => $sankcija->load('prijava'),
+            'korisnik' => $korisnik,
+            'async' => true,
+        ];
+    }
 
-        return $result;
+    /**
+     * Saga korak 1: isključivo Kafka — publikuje suspenzija-zahtev.
+     */
+    private function dispatchSuspendEvent(
+        int $korisnikId,
+        int $days,
+        int $sankcijaId,
+        int $prijavaId,
+        int $moderatorId
+    ): ?array {
+        $correlationId = (string) Str::uuid();
+
+        $this->kafkaProducer->publish(self::TOPIC_SUSPEND_REQUEST, [
+            'correlationId' => $correlationId,
+            'korisnikId' => $korisnikId,
+            'days' => $days,
+            'sankcijaId' => $sankcijaId,
+            'prijavaId' => $prijavaId,
+            'moderatorId' => $moderatorId,
+        ], (string) $korisnikId);
+
+        return null;
     }
 
     public function getAllSankcije(): Collection
