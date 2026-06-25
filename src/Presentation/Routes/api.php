@@ -7,6 +7,9 @@ use App\Presentation\Controllers\KorisnikController;
 use App\Presentation\Controllers\AuthController;
 use App\Presentation\Controllers\StatsController;
 use App\Presentation\Controllers\InternalController;
+use App\Presentation\Controllers\HealthController;
+
+Route::get('/health', [HealthController::class, 'index']);
 
 // Auth routes (public)
 Route::post('/register', [AuthController::class, 'register']);

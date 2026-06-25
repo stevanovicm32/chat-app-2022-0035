@@ -236,17 +236,19 @@ Projekat koristi **GitHub Actions** za automatsko pokretanje testova, build Dock
 
 - **Okidač:** svaki `push` i `pull_request` na grane `main` i `develop`.
 - **Koraci:**
-  1. **Backend testovi** – PHP 8.4, `composer install`, `php artisan test` (PHPUnit).
-  2. **Frontend build** – Node 20, `npm ci`, `npm run build`.
-  3. **Docker build** – build backend i frontend imageova (bez push-a).
+  1. **Identity testovi** – PHP 8.4, `composer install`, `php artisan test` (PHPUnit unit + functional).
+  2. **Moderation testovi** – isto u `services/moderation-service/`.
+  3. **Frontend build** – Node 20, `npm ci`, `npm run build`.
+  4. **Docker build** – build svih 6 image-a (gateway, identity, moderation, chat, event-processor, frontend) bez push-a.
+  5. **Integracioni smoke** – `docker compose up` + `scripts/ci/smoke-test.sh`.
 
 ### CD pipeline (`.github/workflows/cd.yml`)
 
 - **Okidač:** `push` na `main` ili ručno (`workflow_dispatch`).
 - **Koraci:**
-  1. **Build i push** – Docker imagei se build-uju i push-uju u **GitHub Container Registry** (`ghcr.io`):
-     - `ghcr.io/<org>/iteh-backend:latest` i `ghcr.io/<org>/iteh-backend:<sha>`
-     - `ghcr.io/<org>/iteh-frontend:latest` i `ghcr.io/<org>/iteh-frontend:<sha>`
+  1. **Build i push** – svi Docker image-i se push-uju u **GitHub Container Registry** (`ghcr.io`):
+     - `ghcr.io/<org>/iteh-api-gateway`, `iteh-identity-service`, `iteh-moderation-service`, `iteh-chat-service`, `iteh-event-processor`, `iteh-frontend`
+     - tagovi: `latest` i `<git-sha>`
 - **Deployment:** U workflow-u je pripremljen (zakomentarisan) placeholder job za deploy na cloud (npr. Azure Container Apps, AWS ECS, Google Cloud Run). Kada imate okruženje i credentials (npr. u GitHub Secrets ili Environment), odkomentarisati korake i pozvati odgovarajuću CLI (az, aws, gcloud).
 
 ### Lokalno pokretanje testova

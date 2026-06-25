@@ -3,6 +3,7 @@ import { Konverzacija } from '../models/Konverzacija.js';
 import { Poruka } from '../models/Poruka.js';
 import { getNextSequence } from '../utils/counter.js';
 import { authenticate, formatPoruka, isSuspended } from '../middleware/auth.js';
+import { publishMessageCreated } from '../messaging/kafka.js';
 
 const router = Router();
 const MODERATOR_ROLE_ID = 3;
@@ -59,13 +60,26 @@ async function createPoruka(req, res) {
       idChat,
       sender_id: req.user.idKorisnik,
       content: {
-        text: String(tekst),
+        text: String(tekst).trim(),
         attachment_url: req.body.attachment_url || null,
         file_type: req.body.file_type || null,
       },
       timestamp: new Date(),
       read_by: [req.user.idKorisnik],
     });
+
+    if (process.env.KAFKA_ENABLED !== 'false') {
+      try {
+        await publishMessageCreated({
+          porukaId: idPoruka,
+          idChat,
+          senderId: req.user.idKorisnik,
+          tekst: String(tekst).trim(),
+        });
+      } catch (err) {
+        console.error('Kafka publish failed:', err.message);
+      }
+    }
 
     res.status(201).json({
       success: true,

@@ -4,7 +4,10 @@ import axios from 'axios'
 import App from './App'
 import './index.css'
 
-// U produkciji frontend i backend su na različitim domenima – API pozivi moraju ići na backend URL
+axios.defaults.withCredentials = true
+axios.defaults.xsrfCookieName = 'XSRF-TOKEN'
+axios.defaults.xsrfHeaderName = 'X-XSRF-TOKEN'
+
 const backendUrl = import.meta.env.VITE_BACKEND_URL
 if (backendUrl) {
   axios.defaults.baseURL = backendUrl
